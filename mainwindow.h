@@ -5,6 +5,15 @@
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 
+/*
+ * Управление
+ * 1 - вперед
+ * 2 - назад
+ * 3 - влево
+ * 4 - вправо
+ * default:0 = stop
+*/
+
 namespace Ui {
   class MainWindow;
 }
@@ -18,6 +27,7 @@ public:
   ~MainWindow();
   // Variable
   QSerialPort serial;
+  int cmd;
 
   // Port
   void setPortName();
@@ -28,6 +38,9 @@ public:
     void sClosePort();
     void sWritePort();
 
+    void sRobotGo();
+    void sRobotStop();
+    void sRobotBack();
 private:
   Ui::MainWindow *ui;
 };
