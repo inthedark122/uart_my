@@ -2,7 +2,7 @@
 //#include <QtSerialPort/QSerialPortInfo>
 
 #include <QtCore/QDebug>
-// qDebug() << portName;
+#include <QKeyEvent>
 
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
@@ -21,6 +21,8 @@ MainWindow::MainWindow(QWidget *parent) :
   connect(ui->robot_go, SIGNAL(clicked()), this, SLOT(sRobotGo()));
   connect(ui->robot_stop, SIGNAL(clicked()), this, SLOT(sRobotStop()));
   connect(ui->robot_back, SIGNAL(clicked()), this, SLOT(sRobotBack()));
+  connect(ui->robot_left, SIGNAL(clicked()), this, SLOT(sRobotLeft()));
+  connect(ui->robot_right, SIGNAL(clicked()), this, SLOT(sRobotRight()));
   setPortName();
 }
 
@@ -81,19 +83,31 @@ void MainWindow::sRobotGo() {
   sWritePort();
 }
 
+void MainWindow::sRobotLeft() {
+  cmd = 2;
+  sWritePort();
+}
+
 void MainWindow::sRobotStop() {
-  cmd = 0;
+  cmd = 3;
+  sWritePort();
+}
+
+void MainWindow::sRobotRight() {
+  cmd = 4;
   sWritePort();
 }
 
 void MainWindow::sRobotBack() {
-  cmd = 2;
+  cmd = 5;
   sWritePort();
 }
 
 
 void MainWindow::sWritePort() {
-  if (cmd == 1) {
+
+  //const char* text = ui->portText->text().toStdString().c_str();;
+  /*if (cmd == 1) {
     qDebug() << "14";
     for (int i =0; i < 13; i++) {
       serial.write("14", 2); // 35
@@ -106,19 +120,21 @@ void MainWindow::sWritePort() {
       serial.waitForBytesWritten(3000);
     }
   } else {
-    qDebug() << "15";
+    qDebug() << "16";
     for (int i =0; i < 13; i++) {
       serial.write("15", 2); // 63
       serial.waitForBytesWritten(3000);
     }
-  }
+  }*/
+  const char* text = QString::number(cmd).toStdString().c_str();
+  qDebug() << text;
+  serial.write(text, 1); // 63
+  serial.waitForBytesWritten(3000);
 
-   //read(&c2,6);
-  //for (int kkkkkk = 0; kkkkkk < 10; kkkkkk++) {
-  //  serial.waitForReadyRead(3000);
-  //  QByteArray tmp = serial.readAll();
-  //  qDebug() << tmp;
-  //}
+  if (serial.waitForReadyRead(3000)) {
+    QByteArray tmp = serial.readAll();
+    qDebug() << tmp;
+  }
 
   //ui->listWidget->addItem(QString((int)c2));
 
@@ -134,4 +150,29 @@ void MainWindow::sWritePort() {
     qDebug() << "next";
   }*/
   qDebug() << "Отправил";
+}
+
+
+
+void MainWindow::keyReleaseEvent(QKeyEvent *event)
+{
+    switch(event->key()) {
+    case Qt::Key_Up:
+        cmd = 1;
+        break;
+    case Qt::Key_Left:
+        cmd = 2;
+        break;
+    case Qt::Key_Right:
+        cmd = 4;
+        break;
+    case Qt::Key_Down:
+        cmd = 5;
+        break;
+    case Qt::Key_Space:
+        cmd = 3;
+        break;
+    }
+    //qDebug() << cmd;
+    sWritePort();
 }
