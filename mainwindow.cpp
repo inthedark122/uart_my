@@ -1,4 +1,4 @@
-//#include <QtSerialPort/QSerialPort>
+#include <QtSerialPort/QSerialPort>
 //#include <QtSerialPort/QSerialPortInfo>
 
 #include <QtCore/QDebug>
@@ -13,6 +13,8 @@ MainWindow::MainWindow(QWidget *parent) :
   ui(new Ui::MainWindow)
 {
   ui->setupUi(this);
+  serial = new QSerialPort(this);
+  speed = 0;
 
   // connect(ui->calc, SIGNAL(clicked()), this, SLOT(calc_action()));
   connect(ui->conectPort, SIGNAL(clicked()), this, SLOT(sOpenPort()));
@@ -23,7 +25,29 @@ MainWindow::MainWindow(QWidget *parent) :
   connect(ui->robot_back, SIGNAL(clicked()), this, SLOT(sRobotBack()));
   connect(ui->robot_left, SIGNAL(clicked()), this, SLOT(sRobotLeft()));
   connect(ui->robot_right, SIGNAL(clicked()), this, SLOT(sRobotRight()));
+
+  // Поиск доступных поротов для передачи данных
   setPortName();
+  connect(ui->scan_port, SIGNAL(clicked()), this, SLOT(sSetPortName()));
+
+  // Очистка лога
+  connect(ui->clear_log, SIGNAL(clicked()), this, SLOT(sClearLog()));
+
+  // Установка скорости двигателей
+  connect(ui->set_speed, SIGNAL(clicked()), this, SLOT(sSetSpeed()));
+
+  //
+  connect(serial, SIGNAL(readyRead()), this, SLOT(sReadyRead()));
+}
+
+
+void MainWindow::sReadyRead() {
+    QByteArray tmp = serial->readAll();
+    ui->listWidget->insertItem(0, QString(tmp));
+    //for (int i = 0; i < tmp.count(); i++) {
+    //    ui->listWidget->insertItem(0, QString().sprintf("Получил %s", tmp[i]));
+    //}
+    //qDebug() << tmp;
 }
 
 MainWindow::~MainWindow()
@@ -31,37 +55,50 @@ MainWindow::~MainWindow()
   delete ui;
 }
 
+void MainWindow::sSetPortName() {
+    while (ui->portName->count()) {
+      ui->portName->removeItem(0);
+    }
+    this->setPortName();
+}
+
+void MainWindow::sClearLog() {
+    ui->listWidget->clear();
+}
+
+void MainWindow::sSetSpeed() {
+    speed = ui->speed->value();
+}
+
 void MainWindow::setPortName() {
   foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
-    //ui->portName->
     ui->portName->addItem(info.portName());
-    //ui->listWidget->addItem(info.portName());
     //qDebug() << "Name        : " << info.portName();
     //qDebug() << "Description : " << info.description();
     //qDebug() << "Manufacturer: " << info.manufacturer();
-
-
   }
 }
 
 void MainWindow::openPort(QString portName) {
-  ui->listWidget->addItem(QString("Открытие порта"));
+  ui->listWidget->insertItem(0, QString("Открытие порта"));
   foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
     if (info.portName() == portName) {
       // Example use QSerialPort
-      serial.setPort(info);
-      if (serial.open(QIODevice::ReadWrite)) {
-        ui->listWidget->addItem(QString("Порт открыт"));
-        serial.setBaudRate(QSerialPort::Baud9600);
-        serial.setParity(QSerialPort::NoParity);
-        serial.setStopBits(QSerialPort::OneStop);
-        serial.setFlowControl(QSerialPort::NoFlowControl);
-        serial.setDataBits(QSerialPort::Data8);
+      serial->flush();
+      serial->setPort(info);
+      if (serial->open(QIODevice::ReadWrite)) {
+        ui->listWidget->insertItem(0, QString("Порт открыт"));
+        serial->setBaudRate(QSerialPort::Baud9600);
+        serial->setParity(QSerialPort::NoParity);
+        serial->setStopBits(QSerialPort::OneStop);
+        serial->setFlowControl(QSerialPort::NoFlowControl);
+        serial->setDataBits(QSerialPort::Data8);
         return;
       } else {
-        ui->listWidget->addItem(QString("Не могу открыть порт"));
+        ui->listWidget->insertItem(0, QString("Не могу открыть порт"));
+        qDebug() << "error code = " << serial->error();
+        qDebug() << "error string = " << serial->errorString();
       }
-      //    serial.close();
     }
   }
 }
@@ -74,8 +111,8 @@ void MainWindow::sOpenPort() {
 }
 
 void MainWindow::sClosePort() {
-  serial.close();
-  ui->listWidget->addItem(QString("Порт закрыт"));
+  serial->close();
+  ui->listWidget->insertItem(0, QString("Порт закрыт"));
 }
 
 void MainWindow::sRobotGo() {
@@ -105,57 +142,30 @@ void MainWindow::sRobotBack() {
 
 
 void MainWindow::sWritePort() {
-
-  //const char* text = ui->portText->text().toStdString().c_str();;
-  /*if (cmd == 1) {
-    qDebug() << "14";
-    for (int i =0; i < 13; i++) {
-      serial.write("14", 2); // 35
-      serial.waitForBytesWritten(3000);
+    int data = 0; // max 31 bit
+    if (cmd <= 5) {
+        data = speed;
     }
-  } else if (cmd == 2) {
-    qDebug() << "16";
-    for (int i =0; i < 13; i++) {
-      serial.write("16", 2); // 56
-      serial.waitForBytesWritten(3000);
-    }
-  } else {
-    qDebug() << "16";
-    for (int i =0; i < 13; i++) {
-      serial.write("15", 2); // 63
-      serial.waitForBytesWritten(3000);
-    }
-  }*/
-  const char* text = QString::number(cmd).toStdString().c_str();
-  qDebug() << text;
-  serial.write(text, 1); // 63
-  serial.waitForBytesWritten(3000);
 
-  if (serial.waitForReadyRead(3000)) {
-    QByteArray tmp = serial.readAll();
-    qDebug() << tmp;
-  }
+  QString text = QString().sprintf("%c%c", cmd, data);
+  ui->listWidget->insertItem(0, QString().sprintf("Отправляю %i:%i", cmd, data));
+  serial->write(text.toStdString().c_str(), 1); // 63
+  serial->waitForBytesWritten(3000);
+  ui->listWidget->insertItem(0, QString("Отправил"));
 
-  //ui->listWidget->addItem(QString((int)c2));
+  //if (serial.waitForReadyRead(3000)) {
+  //  QByteArray tmp = serial.readAll();
+  //  qDebug() << tmp;
+  //}
 
-  /*QByteArray read_ir;
-  if (serial.waitForReadyRead(3000)) {
-    read_ir = serial.readAll();
-    int tmp[read_ir.length()];
-    for (int i = 0; i < read_ir.length(); i++) {
-      tmp[i] = (int)read_ir.at(i);
-      //qDebug() << (int)read_ir.at(i);
-    }
-    qDebug() << tmp;
-    qDebug() << "next";
-  }*/
-  qDebug() << "Отправил";
+
+
 }
-
 
 
 void MainWindow::keyReleaseEvent(QKeyEvent *event)
 {
+    cmd = 0;
     switch(event->key()) {
     case Qt::Key_Up:
         cmd = 1;
@@ -174,5 +184,7 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
         break;
     }
     //qDebug() << cmd;
-    sWritePort();
+    if (cmd != 0) {
+        sWritePort();
+    }
 }

@@ -26,8 +26,9 @@ public:
   explicit MainWindow(QWidget *parent = 0);
   ~MainWindow();
   // Variable
-  QSerialPort serial;
-  int cmd;
+
+  int cmd; // 63 bit
+  int speed; // Скорость двигателей
 
   // Port
   void setPortName();
@@ -44,12 +45,18 @@ public:
     void sRobotLeft();
     void sRobotRight();
 
+    void sSetPortName();
+    void sClearLog();
+    void sSetSpeed();
+    void sReadyRead();
+
 protected:
     //void keyPressEvent(QKeyEvent *event);
     void keyReleaseEvent(QKeyEvent *event);
 
 private:
   Ui::MainWindow *ui;
+  QSerialPort *serial;
 };
 
 #endif // MAINWINDOW_H
