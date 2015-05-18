@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
+#include <QTimer>
 
 /*
  * Управление
@@ -34,6 +35,8 @@ public:
   void setPortName();
   void openPort(QString);
 
+  void setDisableButton(bool disable);
+
   private slots:
     void sOpenPort();
     void sClosePort();
@@ -49,6 +52,7 @@ public:
     void sClearLog();
     void sSetSpeed();
     void sReadyRead();
+    void sTimerDelay();
 
 protected:
     //void keyPressEvent(QKeyEvent *event);
@@ -57,6 +61,7 @@ protected:
 private:
   Ui::MainWindow *ui;
   QSerialPort *serial;
+  QTimer *timer_delay;
 };
 
 #endif // MAINWINDOW_H

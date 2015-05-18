@@ -14,6 +14,7 @@ MainWindow::MainWindow(QWidget *parent) :
 {
   ui->setupUi(this);
   serial = new QSerialPort(this);
+  timer_delay = new QTimer(this);
   speed = 0;
 
   // connect(ui->calc, SIGNAL(clicked()), this, SLOT(calc_action()));
@@ -36,8 +37,11 @@ MainWindow::MainWindow(QWidget *parent) :
   // Установка скорости двигателей
   connect(ui->set_speed, SIGNAL(clicked()), this, SLOT(sSetSpeed()));
 
-  //
+  // Прием данных по UART
   connect(serial, SIGNAL(readyRead()), this, SLOT(sReadyRead()));
+
+  // Обработка задержки
+  connect(timer_delay, SIGNAL(timeout()), this, SLOT(sTimerDelay()));
 }
 
 
@@ -158,7 +162,11 @@ void MainWindow::sWritePort() {
   //  qDebug() << tmp;
   //}
 
-
+  if (ui->set_timer->isChecked() && !timer_delay->isActive()) {
+      int delay_time = QString(ui->time_deley->text()).toInt();
+      timer_delay->start(delay_time);
+      setDisableButton(true);
+  }
 
 }
 
@@ -187,4 +195,22 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event)
     if (cmd != 0) {
         sWritePort();
     }
+}
+
+
+void MainWindow::sTimerDelay() {
+    cmd = 3;
+    sWritePort();
+
+    timer_delay->stop();
+    setDisableButton(false);
+}
+
+void MainWindow::setDisableButton(bool disable) {
+    ui->robot_go->setDisabled(disable);
+    ui->robot_back->setDisabled(disable);
+    ui->robot_left->setDisabled(disable);
+    ui->robot_right->setDisabled(disable);
+    ui->robot_stop->setDisabled(disable);
+    ui->reinit_sensor->setDisabled(disable);
 }
