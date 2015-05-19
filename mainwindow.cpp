@@ -16,8 +16,9 @@ MainWindow::MainWindow(QWidget *parent) :
   serial = new QSerialPort(this);
   timer_delay = new QTimer(this);
   speed = 0;
+  is_command = false;
+  command = 0;
 
-  // connect(ui->calc, SIGNAL(clicked()), this, SLOT(calc_action()));
   connect(ui->conectPort, SIGNAL(clicked()), this, SLOT(sOpenPort()));
   connect(ui->closePort, SIGNAL(clicked()), this, SLOT(sClosePort()));
   connect(ui->writePort, SIGNAL(clicked()), this, SLOT(sWritePort()));
@@ -26,8 +27,9 @@ MainWindow::MainWindow(QWidget *parent) :
   connect(ui->robot_back, SIGNAL(clicked()), this, SLOT(sRobotBack()));
   connect(ui->robot_left, SIGNAL(clicked()), this, SLOT(sRobotLeft()));
   connect(ui->robot_right, SIGNAL(clicked()), this, SLOT(sRobotRight()));
+  connect(ui->reinit_sensor, SIGNAL(clicked()), this, SLOT(sReinitSensor()));
 
-  // Поиск доступных поротов для передачи данных
+  // Поиск доступных портов для передачи данных
   setPortName();
   connect(ui->scan_port, SIGNAL(clicked()), this, SLOT(sSetPortName()));
 
@@ -47,11 +49,35 @@ MainWindow::MainWindow(QWidget *parent) :
 
 void MainWindow::sReadyRead() {
     QByteArray tmp = serial->readAll();
-    ui->listWidget->insertItem(0, QString(tmp));
-    //for (int i = 0; i < tmp.count(); i++) {
-    //    ui->listWidget->insertItem(0, QString().sprintf("Получил %s", tmp[i]));
-    //}
-    //qDebug() << tmp;
+    int tmp_data = tmp.toHex().toInt();
+
+    //qDebug() << tmp_data;
+
+    //return;
+    if (is_command) {
+        QString text_status = QString("Получаю ");
+        text_status += QString::number(command) + ":" + QString::number(tmp_data);;
+        switch(command) {
+        case 8:
+            ui->dist->setText(QString::number(tmp_data));
+            break;
+        case 9:
+            ui->touch->setText(QString::number(tmp_data));
+            break;
+        case 11:
+            ui->micro->setText(QString::number(tmp_data));
+            break;
+        }
+
+        qDebug() << tmp.toHex();
+        command = -1;
+        is_command = false;
+        ui->listWidget->insertItem(0, text_status);
+    } else {
+        is_command = true;
+        command = tmp_data;
+        qDebug() << "commad=" << command;
+    }
 }
 
 MainWindow::~MainWindow()
@@ -87,7 +113,6 @@ void MainWindow::openPort(QString portName) {
   ui->listWidget->insertItem(0, QString("Открытие порта"));
   foreach (const QSerialPortInfo &info, QSerialPortInfo::availablePorts()) {
     if (info.portName() == portName) {
-      // Example use QSerialPort
       serial->flush();
       serial->setPort(info);
       if (serial->open(QIODevice::ReadWrite)) {
@@ -145,7 +170,7 @@ void MainWindow::sRobotBack() {
 }
 
 
-void MainWindow::sWritePort() {
+void MainWindow::sWritePort(bool is_set_timer) {
     int data = 0; // max 31 bit
     if (cmd <= 5) {
         data = speed;
@@ -153,16 +178,11 @@ void MainWindow::sWritePort() {
 
   QString text = QString().sprintf("%c%c", cmd, data);
   ui->listWidget->insertItem(0, QString().sprintf("Отправляю %i:%i", cmd, data));
-  serial->write(text.toStdString().c_str(), 1); // 63
+  serial->write(text.toStdString().c_str(), 2); // 63
   serial->waitForBytesWritten(3000);
   ui->listWidget->insertItem(0, QString("Отправил"));
 
-  //if (serial.waitForReadyRead(3000)) {
-  //  QByteArray tmp = serial.readAll();
-  //  qDebug() << tmp;
-  //}
-
-  if (ui->set_timer->isChecked() && !timer_delay->isActive()) {
+  if (is_set_timer && ui->set_timer->isChecked() && !timer_delay->isActive()) {
       int delay_time = QString(ui->time_deley->text()).toInt();
       timer_delay->start(delay_time);
       setDisableButton(true);
@@ -213,4 +233,9 @@ void MainWindow::setDisableButton(bool disable) {
     ui->robot_right->setDisabled(disable);
     ui->robot_stop->setDisabled(disable);
     ui->reinit_sensor->setDisabled(disable);
+}
+
+void MainWindow::sReinitSensor() {
+    cmd = 10;
+    sWritePort(false);
 }

@@ -9,10 +9,10 @@
 /*
  * Управление
  * 1 - вперед
- * 2 - назад
- * 3 - влево
+ * 2 - влево
+ * 3 - stop
  * 4 - вправо
- * default:0 = stop
+ * 5 - назад
 */
 
 namespace Ui {
@@ -30,6 +30,8 @@ public:
 
   int cmd; // 63 bit
   int speed; // Скорость двигателей
+  bool is_command;
+  int command;
 
   // Port
   void setPortName();
@@ -40,7 +42,7 @@ public:
   private slots:
     void sOpenPort();
     void sClosePort();
-    void sWritePort();
+    void sWritePort(bool is_set_timer = true);
 
     void sRobotGo();
     void sRobotStop();
@@ -53,6 +55,8 @@ public:
     void sSetSpeed();
     void sReadyRead();
     void sTimerDelay();
+
+    void sReinitSensor();
 
 protected:
     //void keyPressEvent(QKeyEvent *event);
