@@ -49,9 +49,11 @@ MainWindow::MainWindow(QWidget *parent) :
 
 void MainWindow::sReadyRead() {
     QByteArray tmp = serial->readAll();
-    int tmp_data = tmp.toHex().toInt();
 
-    //qDebug() << tmp_data;
+    int tmp_data=0;
+    memcpy(&tmp_data, tmp, sizeof(int));
+
+    //qDebug() <<"data=" << num;
 
     //return;
     if (is_command) {
@@ -236,6 +238,6 @@ void MainWindow::setDisableButton(bool disable) {
 }
 
 void MainWindow::sReinitSensor() {
-    cmd = 10;
+    cmd = 49;
     sWritePort(false);
 }
